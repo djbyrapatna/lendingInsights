@@ -7,7 +7,7 @@ from PIL import Image
 import io
 import os
 
-def extend_horizontal_lines(image, kernel_size=40, threshold=150):
+def extend_horizontal_lines(image, kernel_size=1, threshold=50):
     """
     Extends detected horizontal lines across the full width of the image.
     :param image: input image as a numpy array (BGR)
@@ -60,5 +60,5 @@ def process_pdf_page_to_pdf(pdf_path, output_pdf, page_number=0):
         f.write(img2pdf.convert(temp_image_path))
     
     # Clean up temporary image file
-    os.remove(temp_image_path)
+    #os.remove(temp_image_path)
     print(f"Processed PDF saved as '{output_pdf}'.")
