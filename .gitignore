@@ -1,3 +1,5 @@
 pdfData/
 *.pdf
 *.png
+*.pkl
+*.csv
