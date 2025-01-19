@@ -2,8 +2,8 @@ import pdfplumber
 import pandas as pd
 import sys
 import numpy as np
-import extract_data_row as etr
-import clean_data_utils as mr_clean
+from .extract_data_row import extract_table_from_pdf, fix_transaction_description, merge_split_rows, remove_empty_columns
+from .clean_data_utils import merge_dollar_cr_cells, clean_cell_dollar_cr, create_dataset
 
 DEFAULT_EXTRACTION_SETTINGS = {
     "vertical_strategy": "text",    
@@ -32,26 +32,26 @@ def data_extract_and_clean_pipeline(pdf_file, extract_settings = DEFAULT_EXTRACT
       pd.DataFrame: The final cleaned dataset.
     """
     # Step 1: Extract raw data from PDF.
-    raw_data = etr.extract_table_from_pdf(pdf_file, extract_settings)
+    raw_data = extract_table_from_pdf(pdf_file, extract_settings)
     
     # Step 2: Optionally fix transaction description issues.
     
-    raw_data = etr.fix_transaction_description(raw_data)
+    raw_data = fix_transaction_description(raw_data)
     
     # Step 3: Merge rows that were split.
-    merged_rows = etr.merge_split_rows(raw_data)
+    merged_rows = merge_split_rows(raw_data)
     
     # Step 4: Remove columns that are mostly empty.
-    no_empty_cols = etr.remove_empty_columns(merged_rows, empty_threshold=0.9)
+    no_empty_cols = remove_empty_columns(merged_rows, empty_threshold=0.9)
     
     # Step 5: Merge cells where there is a '$' and 'CR' indication.
-    balance_merged = mr_clean.merge_dollar_cr_cells(no_empty_cols)
+    balance_merged = merge_dollar_cr_cells(no_empty_cols)
     
     # Step 6: Clean all cells for '$' and 'CR'.
-    cleaned_rows = mr_clean.clean_cell_dollar_cr(balance_merged)
+    cleaned_rows = clean_cell_dollar_cr(balance_merged)
     
     # Step 7: Convert the list of cleaned rows into a pandas DataFrame.
-    final_dataset = mr_clean.create_dataset(cleaned_rows)
+    final_dataset = create_dataset(cleaned_rows)
     
     return final_dataset
 
