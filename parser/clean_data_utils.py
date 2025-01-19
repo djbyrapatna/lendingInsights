@@ -53,7 +53,7 @@ def clean_cell_dollar_cr(dataset):
     return cleaned_dataset
 
 
-def is_date(string, fuzzy=True):
+def _is_date(string, fuzzy=True):
     """
     Tries to parse a string as a date.
     Returns the parsed date if successful, otherwise returns None.
@@ -68,21 +68,42 @@ def is_date(string, fuzzy=True):
     except (ValueError, TypeError, OverflowError, Exception):
         return None
 
+def _extract_numeric(cell):
+    """
+    Attempts to extract a numeric value (float) from a cell.
+    Returns a float if possible, otherwise returns None.
+    """
+    try:
+        return float(cell.replace(",", "").strip())
+    except (ValueError, AttributeError):
+        return None
+
+
 def create_dataset(processed_data):
     """
-    Given a processed dataset (list of lists), creates an empty DataFrame with the same number
-    of rows and columns 'Date', 'Transaction Description', 'Debit', 'Credit', 'Balance'.
-    It then scans each row for the first date (from left to right) and places it in the 'Date' column.
-    If no date is found, None is placed.
+    Given a processed dataset (list of lists), creates a DataFrame with columns:
+      'Date', 'Transaction Description', 'Debit', 'Credit', 'Balance'.
     
-    Parameters:
-      processed_data (list of list): The processed dataset.
-      
+    For each row:
+      1. If a date is found (scanning left-to-right, ignoring cells containing '.'),
+         that date is placed in the 'Date' column.
+         Otherwise, the transaction description is all cells from the leftmost onward.
+      2. Numeric values in the row are collected; the rightmost numeric value is
+         considered the Balance.
+      3. If a second rightmost numeric value exists, it is assigned to Debit or Credit,
+         based on comparison with the closest previous non-None balance.
+      4. The Transaction Description is constructed:
+         - If no date was found: concatenate every cell in the row.
+         - If a date was found and a balance was found: concatenate the cells 
+           between the date cell and the cell containing the debit/credit (if it exists)
+           or, if not, between the date cell and the balance cell.
+         - If no balance is found, skip the transaction description logic for that row.
+      5. Rows with no balance numeric value are later dropped.
+    
     Returns:
-      pd.DataFrame: DataFrame with the new columns, where the 'Date' column is populated.
+      A DataFrame with the populated columns.
     """
     num_rows = len(processed_data)
-    # Create an empty DataFrame with the desired columns.
     df = pd.DataFrame({
         "Date": [None] * num_rows,
         "Transaction Description": [None] * num_rows,
@@ -91,63 +112,96 @@ def create_dataset(processed_data):
         "Balance": [None] * num_rows
     })
     
-    # For each row in the processed dataset, scan for a date string.
-    def extract_numeric(cell):
-        try:
-            return float(cell.replace(",", "").strip())
-        except (ValueError, AttributeError):
-            return None
-
-    # Process each row
     for idx, row in enumerate(processed_data):
         found_date = None
-        numeric_values = []
+        date_index = None
+        numeric_cells = []  # List of tuples: (index, numeric_value)
         
-        # Scan for a date and numeric values in the row
-        for cell in row:
+        # Scan left-to-right for date and numeric values.
+        for i, cell in enumerate(row):
             if cell is not None and isinstance(cell, str):
-                if "." not in cell:  # Skip cells with "."
-                    parsed_date = is_date(cell, fuzzy=False)
-                    if parsed_date is not None and found_date is None:
+                # When looking for date, ignore cell if it contains a "."
+                if "." not in cell and found_date is None:
+                    parsed_date = _is_date(cell, fuzzy=False)
+                    if parsed_date is not None:
                         found_date = parsed_date
-                # Try to extract numeric values from the cell
-                num = extract_numeric(cell)
+                        date_index = i
+                # Attempt to extract numeric value.
+                num =_extract_numeric(cell)
                 if num is not None:
-                    numeric_values.append(num)
-
-        # Assign the first found date (if any)
+                    numeric_cells.append((i, num))
+        
+        # Assign the found date (even if None).
         df.at[idx, "Date"] = found_date
-
-        # Assign the balance and determine debit/credit
-        if numeric_values:
-            # Rightmost numeric value is the balance
-            balance = numeric_values[-1]
-            df.at[idx, "Balance"] = balance
-            
-            # Second rightmost numeric value is used for debit/credit
-            if len(numeric_values) > 1:
-                second_last = numeric_values[-2]
-                # Determine whether it's debit or credit
-                if idx > 0:
-                    prev_balance = df.at[idx - 1, "Balance"]
-                    if prev_balance is not None and balance < prev_balance:
-                        if second_last is not None:
-                            df.at[idx, "Debit"] = second_last
-                        else:
-                            df.at[idx, "Debit"] = prev_balance-balance
-                    elif prev_balance is not None:
-                        if second_last is not None:
-                            df.at[idx, "Credit"] = second_last
-                        else:
-                            df.at[idx, "Debit"] = -prev_balance+balance
+        
+        # If no numeric values (and so no balance) are found, skip further processing for this row.
+        if not numeric_cells:
+            continue
+        
+        # Balance: the rightmost numeric cell.
+        balance_index, balance = numeric_cells[-1]
+        df.at[idx, "Balance"] = balance
+        
+        # Debit/Credit: use second rightmost numeric if available.
+        second_numeric = None
+        second_index = None
+        if len(numeric_cells) > 1:
+            second_index, second_numeric = numeric_cells[-2]
+            if idx > 0:
+                # Search upward for the closest previous non-None balance.
+                prev_balance = None
+                for search_idx in range(idx - 1, -1, -1):
+                    prev_balance = df.at[search_idx, "Balance"]
+                    if prev_balance is not None:
+                        break
+                if prev_balance is not None and balance < prev_balance:
+                    df.at[idx, "Debit"] = second_numeric
                 else:
-                    # For the first row, assume it's a credit
-                    df.at[idx, "Credit"] = second_last
+                    df.at[idx, "Credit"] = second_numeric
+            else:
+                # For the first row, default to credit.
+                df.at[idx, "Credit"] = second_numeric
         else:
-            # If no numeric values, leave Balance, Debit, and Credit as None
-            df.at[idx, "Balance"] = None
-            df.at[idx, "Debit"] = None
-            df.at[idx, "Credit"] = None
+            prev_balance = None
+            for search_idx in range(idx - 1, -1, -1):
+                prev_balance = df.at[search_idx, "Balance"]
+                if prev_balance is not None:
+                    break
+            if prev_balance is not None and balance < prev_balance:
+                df.at[idx, "Debit"] = prev_balance-balance
+            elif prev_balance is not None:
+                df.at[idx, "Credit"] = balance-prev_balance
+            
+        # Build the Transaction Description.
+        description = ""
+        # If no date was found, concatenate all cells.
+        if found_date is None:
+            # If no date was found, but numeric_cells exist, use the rightmost numeric cell index as the endpoint.
+            if numeric_cells:
+                # Use the rightmost numeric cell index
+                end_index = second_index if second_numeric is not None else balance_index
+                description = " ".join(cell.strip() for cell in row[:end_index] if cell and isinstance(cell, str))
+            else:
+                # If no numeric value is found, concatenate everything.
+                description = " ".join(cell.strip() for cell in row if cell and isinstance(cell, str))
+        else:
+            # Only try description logic if we have a found balance.
+            if numeric_cells:
+                # Determine the endpoint: if second_numeric exists, use its index; otherwise, balance_index.
+                end_index = second_index if second_numeric is not None else balance_index
+                # Concatenate cells between date_index and end_index (exclusive)
+                description_parts = []
+                if date_index is not None and date_index < end_index:
+                    for cell in row[date_index + 1:end_index]:
+                        if cell and isinstance(cell, str) and cell.strip():
+                            description_parts.append(cell.strip())
+                description = " ".join(description_parts)
+        df.at[idx, "Transaction Description"] = description
+    
+    # Drop any rows with no Balance (i.e. balance remains None).
+    df = df[df["Balance"].notnull()].reset_index(drop=True)
+    return df
+
 
     return df
 
