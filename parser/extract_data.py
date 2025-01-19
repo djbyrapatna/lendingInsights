@@ -56,7 +56,6 @@ def data_extract_and_clean_pipeline(pdf_file, fix_transaction_description=False)
     return final_dataset
 
 
-
 if __name__ == '__main__':
     arg1 = sys.argv[1]
     if arg1 == "all":
