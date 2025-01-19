@@ -23,7 +23,7 @@ def extract_table_from_pdf(pdf_path, settings = DEFAULT_EXTRACTION_SETTINGS):
             tables = page.extract_tables(table_settings=settings)
             for table in tables:
                 for row in table:
-                    print(row)
+                    #print(row)
                     data.append(row)
             
             
@@ -40,9 +40,9 @@ def merge_split_rows(table_rows):
     merged_rows = []
     for row in table_rows:
         # Replace None with an empty string
-        print(row)
+        
         row = [cell if cell is not None else "" for cell in row]
-        print(row)
+        
         # Count non-empty cells (after stripping whitespace)
         non_empty_cells = [cell for cell in row if cell.strip()]
         
@@ -154,19 +154,3 @@ def fix_transaction_description(rows):
             i += 1
     return fixed_rows
 
-# ----- Example usage -----
-if __name__ == '__main__':
-    sample_rows = [
-        [None, "Transfer to other Bank NetBan\nOronsay\nTAX OFFICE PAYMENTS NetB\n551004045508468221 ATO ta\nTransfer from xx8727 NetBank\nTELSTRA CORP LTD NetBank\n2000353972134\nDirect Debit 165969 JETTS KIN\n201727539277\nDirect Debit 180247 SGIO\nMOT563142623171221\nDirect Debit 165969 JETTS KIN\n201728541361\nDirect Credit 106600 CAMERO\nOol party thanks x", "other col", "700.00", "", "$952.55 CR"],
-        [None, None, "other col", "850.75", "", "$101.80 CR"],
-        [None, None, "other col", "", "700.00", "$801.80 CR"],
-        [None, None, "other col", "115.00", "", "$686.80 CR"],
-        [None, None, "other col", "27.90", "", "$658.90 CR"],
-        [None, None, "other col", "56.42", "", "$602.48 CR"],
-        [None, None, "other col", "27.90", "", "$574.58 CR"],
-        [None, None, "other col", "", "20.00", "$594.58 CR"]
-    ]
-    
-    fixed = fix_transaction_description(sample_rows)
-    for idx, row in enumerate(fixed):
-        print(f"Row {idx}: {row}")
