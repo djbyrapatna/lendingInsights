@@ -25,7 +25,6 @@ def get_cluster_keywords(df, cluster_label, text_column="Transaction Description
     # Split into words.
     words = processed.split()
     
-    # You could use TfidfVectorizer as well, but here we use simple frequency counts.
     word_counts = Counter(words)
     # Return the top_n most common words.
     return [word for word, count in word_counts.most_common(top_n)]
@@ -40,11 +39,13 @@ def map_cluster_to_category(keywords):
         return "Rent"
     elif any(word in keywords for word in ["salary", "payroll", "credited"]):
         return "Salary"
-    elif any(word in keywords for word in ["bill", "bpay", "utility", "electricity", "water"]):
+    elif any(word in keywords for word in ["bill", "bpay", "utility", "electricity", "water", "phone", "fone"]):
         return "Utilities"
     elif any(word in keywords for word in ["transfer"]):
         return "Transfer"
     # You can add more rules as needed.
+    elif any(word in keywords for word in ["withdrawal", "cash", "wd"]):
+        return "Withdrawal"
     else:
         return "Other"
 
