@@ -3,6 +3,24 @@ import torch.nn.functional as F
 import pandas as pd
 from transformers import AutoTokenizer, AutoModel
 
+def _get_amount(row, debit_column="Debit", credit_column="Credit"):
+    """
+    Extracts the amount from the row.
+      - If a Debit value exists, returns its absolute value.
+      - Otherwise, if a Credit exists, returns its absolute value.
+      - Otherwise returns 0.0.
+    """
+    try:
+        if pd.notnull(row[debit_column]):
+            return abs(float(row[debit_column]))
+        elif pd.notnull(row[credit_column]):
+            return abs(float(row[credit_column]))
+        else:
+            return 0.0
+    except Exception:
+        return 0.0
+
+
 def export_transactions_for_labeling(dataDirectory, output_csv="transactions_for_labeling.csv"):
     """
     Exports all transaction data from the dataDirectory dictionary into a single CSV file.
@@ -50,6 +68,7 @@ def get_embeddings(texts, model_name='sentence-transformers/all-MiniLM-L6-v2', d
         summed = torch.sum(masked_embeddings, dim=1)
         summed_mask = torch.clamp(attention_mask.sum(dim=1), min=1e-9)
         sentence_embeddings = summed / summed_mask
+    
     return sentence_embeddings.cpu()
 
 def kmeans_torch(embeddings, num_clusters, num_iters=100):
@@ -134,3 +153,72 @@ def cluster_transaction_descriptions_pytorch(df, text_column="Transaction Descri
     combined_df = pd.concat([debit_df, credit_df, other_df]).sort_index()
     return combined_df
 
+def cluster_transaction_descriptions_with_amounts_split_pytorch(
+    df, 
+    text_column="Transaction Description", 
+    debit_column="Debit", 
+    credit_column="Credit",
+    num_clusters=[8, 2], 
+    amount_scale=1.0,
+    model_name = 'sentence-transformers/all-MiniLM-L6-v2'
+):
+    """
+    Splits the input DataFrame into two subsets:
+      - Debit transactions (where the Debit column is not null)
+      - Credit transactions (where the Credit column is not null)
+    For each subset, it obtains transformer-based text embeddings for the
+    transaction description and extracts a numeric transaction amount.
+    It then scales and concatenates the amount (1D) onto the text embeddings to form a combined feature vector.
+    K-means clustering is applied using PyTorch on each subset separately.
+    
+    Parameters:
+      df (pd.DataFrame): Input DataFrame with at least 'Transaction Description', 'Debit', and 'Credit' columns.
+      text_column (str): Name of the transaction description column.
+      debit_column (str): Name of the debit amount column.
+      credit_column (str): Name of the credit amount column.
+      num_clusters (list or tuple): A two-element list/tuple where the first element is the number of clusters
+                                    for the debit subset, and the second is for the credit subset.
+      amount_scale (float): Scaling factor for the numeric amount.
+      model_name (str): The name of the pretrained model.
+    
+    Returns:
+      pd.DataFrame: The original DataFrame with an added 'Cluster' column for clustered transactions.
+                  Rows that have neither debit nor credit remain unclustered.
+    """
+    # Define a helper function to cluster a given subset
+    def cluster_subset(sub_df, n_clusters):
+        # Ensure text descriptions are available.
+        texts = sub_df[text_column].fillna("").tolist()
+        text_embeddings = get_embeddings(texts, model_name=model_name)  # shape: (N, D)
+        
+        # Extract the numeric amount for each row.
+        amounts = sub_df.apply(lambda row: _get_amount(row, debit_column, credit_column), axis=1)
+        amounts = torch.tensor(amounts.values, dtype=torch.float32).unsqueeze(1)  # shape: (N, 1)
+        amounts = amounts * amount_scale
+        
+        # Concatenate text embeddings and amounts into a combined feature vector.
+        combined_features = torch.cat([text_embeddings, amounts], dim=1)  # shape: (N, D+1)
+        
+        # Run k-means clustering on the combined features.
+        cluster_ids, _ = kmeans_torch(combined_features, num_clusters=n_clusters)
+        
+        # Assign cluster labels to the subset.
+        sub_df = sub_df.copy()
+        sub_df["Cluster"] = cluster_ids.numpy()
+        return sub_df
+    
+    # Split the DataFrame into debit and credit subsets.
+    debit_df = df[df[debit_column].notnull()].copy()
+    credit_df = df[df[credit_column].notnull()].copy()
+    # Rows with neither debit nor credit can be left aside (or cluster them differently if desired).
+    other_df = df[(df[debit_column].isnull()) & (df[credit_column].isnull())].copy()
+    
+    # Cluster each subset using the provided number of clusters.
+    if not debit_df.empty:
+        debit_df = cluster_subset(debit_df, n_clusters=num_clusters[0])
+    if not credit_df.empty:
+        credit_df = cluster_subset(credit_df, n_clusters=num_clusters[1])
+    
+    # Recombine the DataFrame in the original order.
+    combined_df = pd.concat([debit_df, credit_df, other_df]).sort_index()
+    return combined_df
