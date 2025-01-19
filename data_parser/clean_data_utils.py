@@ -155,7 +155,9 @@ def create_dataset(processed_data):
                     if prev_balance is not None:
                         break
                 if prev_balance is not None and balance < prev_balance:
-                    df.at[idx, "Debit"] = second_numeric
+                    df.at[idx, "Debit"] = prev_balance-balance
+                elif prev_balance is not None:
+                    df.at[idx, "Credit"] = balance-prev_balance
                 else:
                     df.at[idx, "Credit"] = second_numeric
             else:
@@ -200,7 +202,25 @@ def create_dataset(processed_data):
     
     # Drop any rows with no Balance (i.e. balance remains None).
     df = df[df["Balance"].notnull()].reset_index(drop=True)
-    return df
+    df = df[~df["Transaction Description"].str.contains(r"opening|closing", case=False, na=False)]
+
+    # Drop rows where "Transaction Description" contains "staff assisted" or "cheques written" or "checks written" (case-insensitive)
+    df = df[~df["Transaction Description"].str.contains(r"staff assisted|cheques written|checks written", case=False, na=False)]
+
+    #  Drop rows where "Transaction Description" contains only the word "Total" or only the phrase "Account total" (case-insensitive)
+    df = df[~df["Transaction Description"].str.strip().str.lower().isin(["total", "account total", "total 0 0 0"])]
+
+    # Build a boolean mask:
+    mask_account = df["Transaction Description"].str.contains("account", case=False, na=False)
+    mask_keywords = df["Transaction Description"].str.contains("fee|withdrawal|deposit|transfer", case=False, na=False)
+
+    # Drop rows where 'account' is present but none of the keywords are present.
+    df = df[~(mask_account & (~mask_keywords))]
+
+    #  Drop any row where the Credit amount is greater than the Balance amount.
+    #    (Assuming "Credit" and "Balance" are numeric columns.)
+    df = df[~(df["Credit"].notnull() & df["Balance"].notnull() & (df["Credit"] > df["Balance"]))]
+    
 
 
     return df
