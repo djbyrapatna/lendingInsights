@@ -193,7 +193,7 @@ def create_dataset(processed_data):
                 description_parts = []
                 if date_index is not None and date_index < end_index:
                     for cell in row[date_index + 1:end_index]:
-                        if cell and isinstance(cell, str) and cell.strip():
+                        if cell and isinstance(cell, str) and cell.strip() and not _is_date(cell,fuzzy=False):
                             description_parts.append(cell.strip())
                 description = " ".join(description_parts)
         df.at[idx, "Transaction Description"] = description
