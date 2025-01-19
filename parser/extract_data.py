@@ -2,9 +2,8 @@ import pdfplumber
 import pandas as pd
 import sys
 import numpy as np
-from process_pdf import process_pdf_page_to_pdf
-from extract_data_word import extract_table_from_layout
 import extract_data_row as etr
+import clean_data_utils as mr_clean
 
 DEFAULT_EXTRACTION_SETTINGS = {
     "vertical_strategy": "text",    
@@ -14,32 +13,42 @@ DEFAULT_EXTRACTION_SETTINGS = {
 }
 
 
+def data_extract_and_clean_pipeline(pdf_file, fix_transaction_description = False):
+    raw_data = etr.extract_table_from_pdf(pdf_file)
+    if fix_transaction_description:
+        raw_data= etr.fix_transaction_description(raw_data)
+    data_merged = etr.merge_split_rows(raw_data)
+    data_merged_and_empty_cols_removed = etr.remove_empty_columns(data_merged, empty_threshold=.9)
+    balance_merge_rows = mr_clean.merge_dollar_cr_cells(data_merged_and_empty_cols_removed)
+    cleaned_rows = mr_clean.clean_cell_dollar_cr(balance_merge_rows)
+    # for row in cleaned_rows[18:28]:
+    #     print(row)
+    pd1 = mr_clean.create_dataset(cleaned_rows)
+    return  pd1
 
 
-# Example usage:
+
+
 
 
 if __name__ == '__main__':
-    num = int(sys.argv[1])
-    pdf_file = '../pdfData/Untitled'+str(num)+'.pdf'
-    #output_pdf = '../pdfData/Untitled'+str(num)+'processed.pdf'
-    #process_pdf_page_to_pdf(pdf_path=pdf_file, output_pdf=output_pdf)
-    #debug_pdf(pdf_file, 'debug_page'+str(num)+'.png')
-    raw_data = etr.extract_table_from_pdf(pdf_file)
-    if num==3:
-        raw_data= etr.fix_transaction_description(raw_data)
-    # raw_data = extract_table_from_layout(pdf_file, y_tolerance=5,x_gap_threshold=2)
-    # for row in raw_data[:50]:
-    #     print(row)
-    # raw_data = extract_table_from_pdf(pdf_file)
-    data_merged = etr.merge_split_rows(raw_data)
-    data_merged_and_empty_cols_removed = etr.remove_empty_columns(data_merged, empty_threshold=.8)
+    arg1 = sys.argv[1]
+    if arg1 == "all":
+        files = [0,1,3]
+        for num in files:
+            pdf_file = '../pdfData/Untitled'+str(num)+'.pdf'
+            data = data_extract_and_clean_pipeline(pdf_file, fix_transaction_description=(num==3))
+            print(data)
+    else:
+        num = int(sys.argv[1])
+        pdf_file = '../pdfData/Untitled'+str(num)+'.pdf'
+        data = data_extract_and_clean_pipeline(pdf_file, fix_transaction_description=(num==3))
+        for row in data[:50]:
+            print (row)
     
-    # Optionally, inspect the raw data
-    for i, row in enumerate(data_merged_and_empty_cols_removed[:100]):
-       print(row)
+    
        
-    
+  
 
 
 
