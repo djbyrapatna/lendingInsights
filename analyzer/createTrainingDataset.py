@@ -86,28 +86,51 @@ def kmeans_torch(embeddings, num_clusters, num_iters=100):
 
     return cluster_ids, centroids
 
-def cluster_transaction_descriptions_pytorch(df, text_column="Transaction Description", num_clusters=5):
+def cluster_transaction_descriptions_pytorch(df, text_column="Transaction Description", num_clusters=[8,2]):
     """
-    Clusters transaction descriptions using PyTorch.
-    1. Converts the descriptions to embeddings using a transformer.
-    2. Runs k-means clustering on the embeddings.
-    3. Adds a 'Cluster' column to the DataFrame.
+    Splits the input DataFrame into subsets:
+      - Rows with a non-null 'Debit'
+      - Rows with a non-null 'Credit'
+    Then, for each subset, it uses a pretrained transformer to generate sentence embeddings,
+    applies k-means clustering (with PyTorch) to group the transaction descriptions,
+    and finally recombines the results.
     
     Parameters:
-      df (pd.DataFrame): DataFrame containing transaction data.
-      text_column (str): Column with transaction descriptions.
-      num_clusters (int): Number of clusters for k-means.
-      
+      df (pd.DataFrame): The input DataFrame, which is assumed to contain at least the following columns:
+                          'Transaction Description', 'Debit', and 'Credit'
+      text_column (str): The column containing transaction description texts.
+      num_clusters (int): The number of clusters for each subset.
+    
     Returns:
-      pd.DataFrame: Updated DataFrame with a 'Cluster' column.
+      pd.DataFrame: The DataFrame with an added 'Cluster' column.
     """
-    # Convert the transaction descriptions into embeddings.
-    texts = df[text_column].tolist()
-    embeddings = get_embeddings(texts)
+    if not isinstance(num_clusters, list) or len(num_clusters)!=2:
+        print("Invalid input for num_clusters-must be list of length 2")
+        return None
+
+    def cluster_subset(sub_df, text_col, num_clusters):
+        texts = sub_df[text_col].tolist()
+        embeddings = get_embeddings(texts)  # (N, D) tensor of sentence embeddings.
+        cluster_ids, _ = kmeans_torch(embeddings, num_clusters=num_clusters)
+        sub_df = sub_df.copy()
+        sub_df["Cluster"] = cluster_ids.numpy()
+        return sub_df
+
+    # Split the DataFrame into debit and credit subsets.
+    debit_df = df[df["Debit"].notnull()].copy()
+    credit_df = df[df["Credit"].notnull()].copy()
+    other_df = df[(df["Debit"].isnull()) & (df["Credit"].isnull())].copy()
     
-    # Cluster the embeddings using k-means implemented in PyTorch.
-    cluster_ids, _ = kmeans_torch(embeddings, num_clusters=num_clusters)
+    # Process each subset if it's non-empty.
+    if not debit_df.empty:
+        debit_df = cluster_subset(debit_df, text_column, num_clusters[0])
+    if not credit_df.empty:
+        credit_df = cluster_subset(credit_df, text_column, num_clusters[1])
     
-    # Add the cluster assignments to the DataFrame.
-    df["Cluster"] = cluster_ids.numpy()
-    return df
+    # Optionally, you can assign a default cluster to rows in 'other_df' or leave them as is.
+    # For this example, we'll leave them without a cluster.
+    
+    # Recombine the subsets.
+    combined_df = pd.concat([debit_df, credit_df, other_df]).sort_index()
+    return combined_df
+
