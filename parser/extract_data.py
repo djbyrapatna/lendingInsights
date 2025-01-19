@@ -13,21 +13,47 @@ DEFAULT_EXTRACTION_SETTINGS = {
 }
 
 
-def data_extract_and_clean_pipeline(pdf_file, fix_transaction_description = False):
+def data_extract_and_clean_pipeline(pdf_file, fix_transaction_description=False):
+    """
+    Runs the entire data extraction and cleaning pipeline:
+      1. Extract raw data from the PDF.
+      2. Optionally fix transaction descriptions.
+      3. Merge split rows.
+      4. Remove empty columns.
+      5. Merge dollar/CR cells.
+      6. Clean all cells for '$' and 'CR'.
+      7. Create the final dataset.
+      
+    Parameters:
+      pdf_file (str): Path to the PDF file.
+      fix_transaction_description (bool): Whether to fix transaction descriptions.
+      
+    Returns:
+      pd.DataFrame: The final cleaned dataset.
+    """
+    # Step 1: Extract raw data from PDF.
     raw_data = etr.extract_table_from_pdf(pdf_file)
+    
+    # Step 2: Optionally fix transaction description issues.
     if fix_transaction_description:
-        raw_data= etr.fix_transaction_description(raw_data)
-    data_merged = etr.merge_split_rows(raw_data)
-    data_merged_and_empty_cols_removed = etr.remove_empty_columns(data_merged, empty_threshold=.9)
-    balance_merge_rows = mr_clean.merge_dollar_cr_cells(data_merged_and_empty_cols_removed)
-    cleaned_rows = mr_clean.clean_cell_dollar_cr(balance_merge_rows)
-    # for row in cleaned_rows[18:28]:
-    #     print(row)
-    pd1 = mr_clean.create_dataset(cleaned_rows)
-    return  pd1
-
-
-
+        raw_data = etr.fix_transaction_description(raw_data)
+    
+    # Step 3: Merge rows that were split.
+    merged_rows = etr.merge_split_rows(raw_data)
+    
+    # Step 4: Remove columns that are mostly empty.
+    no_empty_cols = etr.remove_empty_columns(merged_rows, empty_threshold=0.9)
+    
+    # Step 5: Merge cells where there is a '$' and 'CR' indication.
+    balance_merged = mr_clean.merge_dollar_cr_cells(no_empty_cols)
+    
+    # Step 6: Clean all cells for '$' and 'CR'.
+    cleaned_rows = mr_clean.clean_cell_dollar_cr(balance_merged)
+    
+    # Step 7: Convert the list of cleaned rows into a pandas DataFrame.
+    final_dataset = mr_clean.create_dataset(cleaned_rows)
+    
+    return final_dataset
 
 
 
