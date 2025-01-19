@@ -65,7 +65,7 @@ def assign_categories_to_clusters(df, text_column="Transaction Description"):
         keywords = get_cluster_keywords(df, cluster_label, text_column=text_column, top_n=10)
         category = map_cluster_to_category(keywords)
         cluster_to_category[cluster_label] = category
-        print(f"Cluster {cluster_label} keywords: {keywords} → Mapped Category: {category}")
+        #print(f"Cluster {cluster_label} keywords: {keywords} → Mapped Category: {category}")
     
     # Create a Category column based on the mapping.
     df["Category"] = df["Cluster"].map(cluster_to_category)
