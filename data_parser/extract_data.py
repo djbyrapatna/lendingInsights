@@ -13,7 +13,7 @@ DEFAULT_EXTRACTION_SETTINGS = {
 }
 
 
-def data_extract_and_clean_pipeline(pdf_file, fix_transaction_description=False):
+def data_extract_and_clean_pipeline(pdf_file, extract_settings = DEFAULT_EXTRACTION_SETTINGS):
     """
     Runs the entire data extraction and cleaning pipeline:
       1. Extract raw data from the PDF.
@@ -32,11 +32,11 @@ def data_extract_and_clean_pipeline(pdf_file, fix_transaction_description=False)
       pd.DataFrame: The final cleaned dataset.
     """
     # Step 1: Extract raw data from PDF.
-    raw_data = etr.extract_table_from_pdf(pdf_file)
+    raw_data = etr.extract_table_from_pdf(pdf_file, extract_settings)
     
     # Step 2: Optionally fix transaction description issues.
-    if fix_transaction_description:
-        raw_data = etr.fix_transaction_description(raw_data)
+    
+    raw_data = etr.fix_transaction_description(raw_data)
     
     # Step 3: Merge rows that were split.
     merged_rows = etr.merge_split_rows(raw_data)
