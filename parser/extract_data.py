@@ -4,6 +4,7 @@ import sys
 import numpy as np
 from process_pdf import process_pdf_page_to_pdf
 from extract_data_word import extract_table_from_layout
+import extract_data_row as etr
 
 DEFAULT_EXTRACTION_SETTINGS = {
     "vertical_strategy": "text",    
@@ -19,21 +20,25 @@ DEFAULT_EXTRACTION_SETTINGS = {
 
 
 if __name__ == '__main__':
-    num = sys.argv[1]
+    num = int(sys.argv[1])
     pdf_file = '../pdfData/Untitled'+str(num)+'.pdf'
     #output_pdf = '../pdfData/Untitled'+str(num)+'processed.pdf'
     #process_pdf_page_to_pdf(pdf_path=pdf_file, output_pdf=output_pdf)
     #debug_pdf(pdf_file, 'debug_page'+str(num)+'.png')
-    raw_data = extract_table_from_layout(pdf_file, x_gap_threshold=5)
-    for row in raw_data[:50]:
-        print(row)
+    raw_data = etr.extract_table_from_pdf(pdf_file)
+    if num==3:
+        raw_data= etr.fix_transaction_description(raw_data)
+    # raw_data = extract_table_from_layout(pdf_file, y_tolerance=5,x_gap_threshold=2)
+    # for row in raw_data[:50]:
+    #     print(row)
     # raw_data = extract_table_from_pdf(pdf_file)
-    # data_merged = merge_split_rows(raw_data)
-    # data_merged_and_empty_cols_removed = remove_empty_columns(data_merged)
-    # # Optionally, inspect the raw data
-    # for i, row in enumerate(data_merged_and_empty_cols_removed[:100]):
-    #    print(row)
-    #    print(data_merged[i])
+    data_merged = etr.merge_split_rows(raw_data)
+    data_merged_and_empty_cols_removed = etr.remove_empty_columns(data_merged, empty_threshold=.8)
+    
+    # Optionally, inspect the raw data
+    for i, row in enumerate(data_merged_and_empty_cols_removed[:100]):
+       print(row)
+       
     
 
 

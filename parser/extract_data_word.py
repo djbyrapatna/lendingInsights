@@ -76,6 +76,7 @@ def extract_table_from_layout(pdf_path, y_tolerance=3, x_gap_threshold=5):
     data = []
     for table in all_tables:
         for row in table:
+            print(row)
             data.append(row)
 
-    return all_tables
+    return data

@@ -23,6 +23,7 @@ def extract_table_from_pdf(pdf_path, settings = DEFAULT_EXTRACTION_SETTINGS):
             tables = page.extract_tables(table_settings=settings)
             for table in tables:
                 for row in table:
+                    print(row)
                     data.append(row)
             
             
@@ -31,30 +32,34 @@ def extract_table_from_pdf(pdf_path, settings = DEFAULT_EXTRACTION_SETTINGS):
 
 def merge_split_rows(table_rows):
     """
-    Merges rows that appear to be broken up parts of a single logical row.
-    This implementation assumes that if a row has only one non-empty element,
-    it likely should be appended to the matching column of the previous row.
-    You may need to adjust the logic based on your data's structure.
+    Merges rows that appear to be broken-up parts of a single logical row.
+    If a row has only one non-empty element, merge that content into the previous row
+    and do not add the current row to the output dataset.
+    This version handles NoneType cells.
     """
     merged_rows = []
     for row in table_rows:
-        # Replace None with an empty string for processing
+        # Replace None with an empty string
+        print(row)
         row = [cell if cell is not None else "" for cell in row]
-        # Count non-empty cells
-        non_empty_cells = [cell for cell in row if cell.strip() != ""]
+        print(row)
+        # Count non-empty cells (after stripping whitespace)
+        non_empty_cells = [cell for cell in row if cell.strip()]
+        
+        # If the row appears to be a continuation (only one non-empty cell)
+        # and there's already a previous row, merge its content and DO NOT append this row.
         if len(non_empty_cells) == 1 and merged_rows:
-            # Find the index of the non-empty cell
             for i, cell in enumerate(row):
-                if cell.strip() != "":
-                    # Append the non-empty cell to the previous row's corresponding cell,
-                    # ensuring a space separator if the previous cell isn't empty.
-                    prev_content = merged_rows[-1][i].strip()
-                    merged_rows[-1][i] = (prev_content + " " if prev_content else "") + cell.strip()
-        elif len(non_empty_cells)>0:
-            # Clean up extra whitespace in every cell and append the row
+                if cell.strip():
+                    prev_cell = merged_rows[-1][i].strip()
+                    merged_rows[-1][i] = (prev_cell + " " if prev_cell else "") + cell.strip()
+            # Skip appending this row entirely.
+        elif len(non_empty_cells) > 0:
+            # Otherwise, clean up the row (strip each cell) and append as a new row.
             cleaned_row = [cell.strip() for cell in row]
             merged_rows.append(cleaned_row)
     return merged_rows
+
 
 def remove_empty_columns(table_rows, empty_threshold=0.9):
     """
@@ -83,3 +88,85 @@ def remove_empty_columns(table_rows, empty_threshold=0.9):
     # Reconstruct the table using only the columns to keep
     cleaned_table = [[row[col] for col in columns_to_keep] for row in padded_rows]
     return cleaned_table
+
+# ----- Example usage -----
+def fix_transaction_description(rows):
+    """
+    Processes extracted rows by:
+      1. Scanning for any entry in column 2 (index 1) with more than 2 newline characters.
+      2. Checking how many following rows have a None/empty entry in column 2,
+         storing that number in 'num_transactions_to_fix'.
+      3. Splitting the long text into groups such that:
+           - The first group remains in the row with the extended text.
+           - Each group stops immediately after the second newline is encountered.
+      4. Inserting the first 'num_transactions_to_fix' text groups into the subsequent rows by updating column 2.
+      
+    The function assumes each row is a list and that column 2 is at index 1.
+    
+    Returns a new list of rows with the fixed descriptions.
+    """
+    fixed_rows = list(rows)  # shallow copy is enough if inner lists are replaced
+    num_rows = len(fixed_rows)
+    i = 0
+    while i < num_rows:
+        # Normalize the entry in column 2 for the current row.
+        cell = fixed_rows[i][1] if fixed_rows[i][1] is not None else ""
+        cell = cell.strip()
+        # Check if there are more than 2 newline characters.
+        if cell.count("\n") > 2:
+            # Count how many following rows have an empty entry in column 2.
+            num_transactions_to_fix = 0
+            j = i + 1
+            while j < num_rows and (fixed_rows[j][1] is None or fixed_rows[j][1].strip() == ""):
+                num_transactions_to_fix += 1
+                j += 1
+
+            # Split the long text from cell into groups.
+            # We will iterate over the characters and break as soon as we see the second newline.
+            groups = []
+            current_group = ""
+            newline_count = 0
+            for ch in cell:
+                current_group += ch
+                if ch == "\n":
+                    newline_count += 1
+                    if newline_count == 2:
+                        groups.append(current_group)
+                        current_group = ""
+                        newline_count = 0
+            # Append any remaining text as the final group (if not empty).
+            if current_group:
+                groups.append(current_group)
+
+            # Keep the first grouping in the original row.
+            # Then, assign the next groupings (up to num_transactions_to_fix) to the subsequent rows.
+            if groups:
+                fixed_rows[i][1] = groups[0]
+                for k in range(1, min(num_transactions_to_fix + 1, len(groups))):
+                    fix_row_index = i + k
+                    fixed_rows[fix_row_index][1] = groups[k]
+            # If there are more groups than rows to fix, you can decide whether to merge them
+            # into the original row (after a separator) or ignore them.
+            
+            # Skip ahead past the rows we just processed.
+            i = j
+        else:
+            i += 1
+    return fixed_rows
+
+# ----- Example usage -----
+if __name__ == '__main__':
+    sample_rows = [
+        [None, "Transfer to other Bank NetBan\nOronsay\nTAX OFFICE PAYMENTS NetB\n551004045508468221 ATO ta\nTransfer from xx8727 NetBank\nTELSTRA CORP LTD NetBank\n2000353972134\nDirect Debit 165969 JETTS KIN\n201727539277\nDirect Debit 180247 SGIO\nMOT563142623171221\nDirect Debit 165969 JETTS KIN\n201728541361\nDirect Credit 106600 CAMERO\nOol party thanks x", "other col", "700.00", "", "$952.55 CR"],
+        [None, None, "other col", "850.75", "", "$101.80 CR"],
+        [None, None, "other col", "", "700.00", "$801.80 CR"],
+        [None, None, "other col", "115.00", "", "$686.80 CR"],
+        [None, None, "other col", "27.90", "", "$658.90 CR"],
+        [None, None, "other col", "56.42", "", "$602.48 CR"],
+        [None, None, "other col", "27.90", "", "$574.58 CR"],
+        [None, None, "other col", "", "20.00", "$594.58 CR"]
+    ]
+    
+    fixed = fix_transaction_description(sample_rows)
+    for idx, row in enumerate(fixed):
+        print(f"Row {idx}: {row}")
