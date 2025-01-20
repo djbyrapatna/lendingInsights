@@ -1,8 +1,9 @@
 from transformers import pipeline
+import analyzer.default_classification_settings as default_classification_settings
 
-DEFAULT_MODEL = "valhalla/distilbart-mnli-12-3"
-DEFAULT_CANDIDATE_LABELS = ["Rent", "Salary", "Utilities", "Transfer", "Food", "Other"]
-DEFAULT_CONTEXT = 'These are bank transaction statements: '
+DEFAULT_MODEL = default_classification_settings.DEFAULT_CLASSIFICATION_MODEL
+DEFAULT_CANDIDATE_LABELS = default_classification_settings.DEFAULT_CANDIDATE_LABELS
+DEFAULT_CONTEXT = default_classification_settings.DEFAULT_CONTEXT
 
 # Initialize the zero-shot classifier.
 def create_classifier_pipeline(model_name = DEFAULT_MODEL):
@@ -43,7 +44,10 @@ def assign_categories_to_clusters(df, text_column="Transaction Description", con
         # Combine a representative sample into one string. 
         aggregated_text = " ".join(cluster_texts)
         # Classify the aggregated text.
-        category = classify_cluster_description(aggregated_text, candidate_labels, model_name)
+        if not aggregated_text:
+            category = "Other"
+        else:
+            category = classify_cluster_description(aggregated_text, candidate_labels, model_name)
         cluster_to_category[cluster_label] = category
         #print(f"Cluster {cluster_label} mapped to Category: {category}")
     

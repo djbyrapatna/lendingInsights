@@ -2,6 +2,9 @@ import torch
 import torch.nn.functional as F
 import pandas as pd
 from transformers import AutoTokenizer, AutoModel
+import analyzer.default_classification_settings as default_classification_settings
+
+DEFAULT_EMBEDDING_MODEL = default_classification_settings.DEFAULT_EMBEDDING_MODEL
 
 def _get_amount(row, debit_column="Debit", credit_column="Credit"):
     """
@@ -40,7 +43,7 @@ def export_transactions_for_labeling(dataDirectory, output_csv="transactions_for
     all_data.to_csv(output_csv, index=False)
     print(f"Exported data to {output_csv}")
 
-def get_embeddings(texts, model_name='sentence-transformers/all-MiniLM-L6-v2', device=None):
+def get_embeddings(texts, model_name=DEFAULT_EMBEDDING_MODEL, device=None):
     """
     Converts a list of texts to embeddings using a pretrained transformer.
     
@@ -160,7 +163,7 @@ def cluster_transaction_descriptions_with_amounts_split_pytorch(
     credit_column="Credit",
     num_clusters=[8, 2], 
     amount_scale=1.0,
-    model_name = 'sentence-transformers/all-MiniLM-L6-v2'
+    model_name = DEFAULT_EMBEDDING_MODEL
 ):
     """
     Splits the input DataFrame into two subsets:

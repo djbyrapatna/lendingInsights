@@ -1,5 +1,9 @@
 import pandas as pd
 from transformers import pipeline
+import analyzer.default_classification_settings as default_classification_settings
+
+DEFAULT_CANDIDATE_LABELS = default_classification_settings.DEFAULT_CANDIDATE_LABELS
+DEFAULT_MODEL_NAME = default_classification_settings.DEFAULT_CLASSIFICATION_MODEL
 
 def classify_transactions_in_subset(sub_df, text_column, candidate_labels, classifier, context, few_shot_prompt):
     """
@@ -46,8 +50,8 @@ def classify_transaction_descriptions_with_amounts_split_pytorch(
     text_column="Transaction Description", 
     debit_column="Debit", 
     credit_column="Credit",
-    candidate_labels=None,
-    model_name="distilroberta-base-mnli",  # lightweight alternative
+    candidate_labels=DEFAULT_CANDIDATE_LABELS,
+    model_name=DEFAULT_MODEL_NAME,  # lightweight alternative
     context = True,
     few_shot_prompt = ''
 ):
@@ -71,8 +75,7 @@ def classify_transaction_descriptions_with_amounts_split_pytorch(
                     with neither debit nor credit remain unclassified.
     """
     # Set default candidate labels if none are provided.
-    if candidate_labels is None:
-        candidate_labels = ["Rent", "Salary", "Utilities", "Transfer", "Bill Payment", "Food", "Other"]
+    
     
     # Initialize the zero-shot classifier using the provided model.
     classifier = pipeline("zero-shot-classification", model=model_name)
@@ -98,38 +101,3 @@ def classify_transaction_descriptions_with_amounts_split_pytorch(
     combined_df = pd.concat([debit_df, credit_df, other_df]).sort_index()
     return combined_df
 
-# ----- Example Usage -----
-if __name__ == '__main__':
-    # Example DataFrame with transaction descriptions and debit/credit columns.
-    data = {
-        "Transaction Description": [
-            "Monthly Rent Payment for apartment",
-            "Salary deposit for June",
-            "Electricity bill for May usage",
-            "Water bill for May",
-            "Transfer to savings account executed",
-            "BPAY for Internet subscription",
-            "Payment for groceries at supermarket",
-            "Rent payment for office space",
-            "Salary for July credited",
-            "Credit card payment for shopping",
-            "Internet subscription bill for wifi",
-            "Rent payment for office premises",
-            "Salary credited in bank"
-        ],
-        "Debit": [None, None, 100, 50, None, None, None, 750, None, None, None, 800, None],
-        "Credit": [None, 2000, None, None, 500, 75, 120, None, 2100, 150, 60, None, 2200]
-    }
-    df = pd.DataFrame(data)
-    
-    # Classify transactions using the modified function.
-    classified_df = classify_transaction_descriptions_with_amounts_split_pytorch(
-        df,
-        text_column="Transaction Description",
-        debit_column="Debit",
-        credit_column="Credit",
-        candidate_labels=["Rent", "Salary", "Utilities", "Transfer", "Bill Payment", "Food", "Other"],
-        model_name="distilroberta-base-mnli"
-    )
-    
-    print(classified_df[["Transaction Description", "Debit", "Credit", "Category"]])
