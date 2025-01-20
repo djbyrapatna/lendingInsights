@@ -30,7 +30,7 @@ def classification_pipeline(df, cluster_func, assign_func=None, **kwargs):
     # If an assign_func is provided, perform clustering first then assignment.
     if assign_func is not None:
         # Collect kwargs for clustering.
-        cluster_keys = ["text_column", "debit_column", "credit_column", "num_clusters", "amount_scale", "model_name"]
+        cluster_keys = ["text_column", "debit_column", "credit_column", "num_clusters", "amount_scale", "model_name", "embedding_model_name"]
         cluster_args = {k: kwargs[k] for k in cluster_keys if k in kwargs}
         
         # Call the clustering function.
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     #     dataDirectory[num] = data
     # save_dict(dataDirectory, path)
     dataDirectory = load_dict(loadPath)
-    run_comparison(dataDirectory[1])
+    run_comparison(dataDirectory[1], model_name = 'facebook/bart-large-mnli')
     
     # labeledDirectory = {}
     # for key in dataDirectory.keys():

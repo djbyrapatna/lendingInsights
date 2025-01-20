@@ -38,7 +38,7 @@ def classify_transactions_in_subset(sub_df, text_column, candidate_labels, class
 
         
         # Run the classification.
-        result = classifier(prompt, candidate_labels, multi_label=False)
+        result = classifier(prompt, candidate_labels, multi_label=False ,  hypothesis_template="This bank transaction is about {}.")
         
         categories.append(result["labels"][0])
         
@@ -53,7 +53,8 @@ def classify_transaction_descriptions_with_amounts_split_pytorch(
     candidate_labels=DEFAULT_CANDIDATE_LABELS,
     model_name=DEFAULT_MODEL_NAME,  # lightweight alternative
     context = True,
-    few_shot_prompt = ''
+    few_shot_prompt = '',
+    **kwargs
 ):
     """
     Splits the input DataFrame into subsets of debit and credit transactions, then uses a 

@@ -55,7 +55,7 @@ def map_cluster_to_category(keywords):
     else:
         return "Other"
 
-def assign_categories_to_clusters(df, text_column="Transaction Description"):
+def assign_categories_to_clusters(df, text_column="Transaction Description", **kwargs):
     """
     For each unique cluster in the DataFrame, determine a category using the keywords
     extracted from that cluster. Then, assign the corresponding category to all rows

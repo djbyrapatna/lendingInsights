@@ -27,7 +27,7 @@ def classify_cluster_description(description, candidate_labels, model_name = DEF
     return result["labels"][0]
 
 def assign_categories_to_clusters(df, text_column="Transaction Description", context = DEFAULT_CONTEXT,
-                                  candidate_labels = DEFAULT_CANDIDATE_LABELS, model_name = DEFAULT_MODEL):
+                                  candidate_labels = DEFAULT_CANDIDATE_LABELS, model_name = DEFAULT_MODEL, **kwargs):
     """
     For each unique cluster in the DataFrame, determine a category using the keywords
     extracted from that cluster. Then, assign the corresponding category to all rows

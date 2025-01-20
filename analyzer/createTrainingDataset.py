@@ -163,7 +163,8 @@ def cluster_transaction_descriptions_with_amounts_split_pytorch(
     credit_column="Credit",
     num_clusters=[8, 2], 
     amount_scale=1.0,
-    model_name = DEFAULT_EMBEDDING_MODEL
+    embedding_model_name = DEFAULT_EMBEDDING_MODEL,
+    **kwargs
 ):
     """
     Splits the input DataFrame into two subsets:
@@ -192,7 +193,7 @@ def cluster_transaction_descriptions_with_amounts_split_pytorch(
     def cluster_subset(sub_df, n_clusters):
         # Ensure text descriptions are available.
         texts = sub_df[text_column].fillna("").tolist()
-        text_embeddings = get_embeddings(texts, model_name=model_name)  # shape: (N, D)
+        text_embeddings = get_embeddings(texts, model_name=embedding_model_name)  # shape: (N, D)
         
         # Extract the numeric amount for each row.
         amounts = sub_df.apply(lambda row: _get_amount(row, debit_column, credit_column), axis=1)
