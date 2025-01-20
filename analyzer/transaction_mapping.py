@@ -37,12 +37,18 @@ def map_cluster_to_category(keywords):
     # Example mapping rules
     if any(word in keywords for word in ["rent", "apartment", "lease"]):
         return "Rent"
-    elif any(word in keywords for word in ["salary", "payroll", "credited"]):
+    elif any(word in keywords for word in ["salary", "payroll", "credited", "cred"]):
         return "Salary"
     elif any(word in keywords for word in ["bill", "bpay", "utility", "electricity", "water", "phone", "fone"]):
         return "Utilities"
     elif any(word in keywords for word in ["transfer"]):
         return "Transfer"
+    elif any(word in keywords for word in ["food", "grocery", "groceries", "ubereats"]):
+        return "Food"
+    elif any(word in keywords for word in ["movie", "uber", "lyft", "wine", "beer", "ticket"]):
+        return "Entertainment"
+    elif any(word in keywords for word in ["doctor", "hospital", "insurance", "medical", "drug", "pharmacy"]):
+        return "Medical"
     # You can add more rules as needed.
     elif any(word in keywords for word in ["withdrawal", "cash", "wd"]):
         return "Withdrawal"
