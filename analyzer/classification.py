@@ -4,8 +4,55 @@ from .createTrainingDataset import cluster_transaction_descriptions_with_amounts
 from .store_load_data import save_dict, load_dict
 from .transaction_mapping import assign_categories_to_clusters as assign_rule
 from .transaction_mapping_llm import assign_categories_to_clusters as assign_llm
+from .transaction_mapping_llm_direct import classify_transaction_descriptions_with_amounts_split_pytorch as assign_llm_direct
 import pandas as pd
 
+def classification_pipeline(df, cluster_func=None, assign_func=None, **kwargs):
+    """
+    Processes the input DataFrame using the provided cluster_func and (optionally) assign_func.
+    
+    If assign_func is not None:
+      1. Check kwargs for any of these keys: 
+           text_column, debit_column, credit_column, num_clusters, amount_scale, model_name.
+         Pass any that exist to cluster_func along with df.
+      2. The resulting DataFrame (with a "Cluster" column) is then passed to assign_func.
+         For assign_func, check for these keys in kwargs: 
+           text_column, context, candidate_labels, model_name, (optionally few_shot_prompt).
+         Pass any that exist along with the clustered DataFrame.
+      3. Drop the "Cluster" column from the resulting DataFrame and return it.
+    
+    If assign_func is None:
+      1. Check kwargs for any of these keys: 
+           text_column, debit_column, credit_column, candidate_labels, model_name, context, few_shot_prompt.
+         Pass any that exist along with df to cluster_func.
+      2. Return the dataframe received from cluster_func.
+    """
+    # If an assign_func is provided, perform clustering first then assignment.
+    if assign_func is not None:
+        # Collect kwargs for clustering.
+        cluster_keys = ["text_column", "debit_column", "credit_column", "num_clusters", "amount_scale", "model_name"]
+        cluster_args = {k: kwargs[k] for k in cluster_keys if k in kwargs}
+        
+        # Call the clustering function.
+        cluster_df = cluster_func(df, **cluster_args)
+        
+        # Collect kwargs for assignment.
+        assign_keys = ["text_column", "context", "candidate_labels", "model_name", "few_shot_prompt"]
+        assign_args = {k: kwargs[k] for k in assign_keys if k in kwargs}
+        
+        # Call the assignment function (which returns a DataFrame with a "Category" column).
+        assigned_df = assign_func(cluster_df, **assign_args)
+        
+        # Drop the "Cluster" column.
+        if "Cluster" in assigned_df.columns:
+            assigned_df = assigned_df.drop(columns=["Cluster"])
+        return assigned_df
+
+    else:
+        # If assign_func is None, use a slightly different set of kwargs for the cluster_func.
+        alt_keys = ["text_column", "debit_column", "credit_column", "candidate_labels", "model_name", "context", "few_shot_prompt"]
+        alt_args = {k: kwargs[k] for k in alt_keys if k in kwargs}
+        return cluster_func(df, **alt_args)
 
 
 
