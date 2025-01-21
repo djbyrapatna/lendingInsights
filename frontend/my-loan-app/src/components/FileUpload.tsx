@@ -8,6 +8,7 @@ interface FileUploadProps {
 
 const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
   const [file, setFile] = useState<File | null>(null);
+  const [applicantName, setApplicantName] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
@@ -17,6 +18,11 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
     }
   };
 
+  const handleApplicantNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setApplicantName(event.target.value);
+  };
+
+
   const handleUpload = async () => {
     if (!file) {
       setError("Please select a file.");
@@ -25,7 +31,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
     setLoading(true);
     setError("");
     try {
-      const data = await uploadPDF(file);
+      const data = await uploadPDF(file, applicantName);
       onUpload(data);
     } catch (err) {
       setError("Upload failed.");
@@ -38,6 +44,14 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
   return (
     <div>
       <input type="file" accept="application/pdf" onChange={handleFileChange} />
+      <br />
+      <input
+        type="text"
+        placeholder="Enter applicant name"
+        value={applicantName}
+        onChange={handleApplicantNameChange}
+      />
+      <br />
       <button onClick={handleUpload} disabled={loading}>
         {loading ? "Uploading..." : "Upload"}
       </button>
@@ -45,5 +59,4 @@ const FileUpload: React.FC<FileUploadProps> = ({ onUpload }) => {
     </div>
   );
 };
-
 export default FileUpload;

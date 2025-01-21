@@ -45,7 +45,7 @@ router.post('/process', upload.single('file'), async (req, res) => {
     const dbResult = await pool.query(insertQuery, values);
     
     // Send back the result, possibly including the new record's ID.
-    res.json({ id: dbResult.rows[0].id, filename, ...result });
+    res.json({ id: dbResult.rows[0].id, filename, ...finalResult });
     
     //res.json({ filename: uniqueFilename, ...result });
   } catch (error) {
