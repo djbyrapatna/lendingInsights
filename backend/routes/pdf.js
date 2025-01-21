@@ -54,4 +54,15 @@ router.post('/process', upload.single('file'), async (req, res) => {
   }
 });
 
+router.get('/evaluations', async (req, res) => {
+  try {
+    const queryText = 'SELECT * FROM loan_evaluations ORDER BY created_at DESC';
+    const dbResult = await pool.query(queryText);
+    res.json(dbResult.rows);
+  } catch (error) {
+    console.error('Error fetching evaluations:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
