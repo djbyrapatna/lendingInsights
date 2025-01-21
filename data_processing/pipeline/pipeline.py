@@ -7,7 +7,7 @@ def document_to_loan_evaluation_pipeline(pdf_file,
                                          cluster_func =createTrainingDataset.cluster_transaction_descriptions_with_amounts_split_pytorch,
                                           assign_func = transaction_mapping_llm.assign_categories_to_clusters ):
     extract_df = extract_data.data_extract_and_clean_pipeline(pdf_file)
-    labeled_df = classification.classification_pipeline(extract_data, cluster_func =cluster_func, assign_func=assign_func )
+    labeled_df = classification.classification_pipeline(extract_df, cluster_func =cluster_func, assign_func=assign_func )
     metrics_dict = metrics.aggregate_metrics(labeled_df)
     loan_eligibility_score, msg = metrics.calculate_loan_eligibility_score(metrics=metrics_dict)
     return labeled_df, metrics_dict, loan_eligibility_score, msg
