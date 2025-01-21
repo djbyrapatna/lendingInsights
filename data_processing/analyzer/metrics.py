@@ -207,4 +207,4 @@ def calculate_loan_eligibility_score(metrics, weights=DEFAULT_METRICS_DICTIONARY
     return_message = _return_message_helper(data_loss_score=data_loss_warning, max_data_loss_score=MAX_DATA_LOSS_SCORE)
 
 
-    return score
+    return score, return_message
