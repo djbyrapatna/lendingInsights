@@ -172,6 +172,7 @@ const LoanEligibilityPage: React.FC = () => {
             </th>
             <th style={{ border: '1px solid black', padding: '0.5rem' }}>Data Warning</th>
             <th style={{ border: '1px solid black', padding: '0.5rem' }}>Metrics Page</th>
+            <th style={{ border: '1px solid black', padding: '0.5rem' }}>Download PDF</th>
           </tr>
         </thead>
         <tbody>
@@ -191,6 +192,22 @@ const LoanEligibilityPage: React.FC = () => {
                   <td style={{ border: '1px solid black', padding: '0.5rem' }}>
                     <Link to={`/metrics?evaluationId=${evalRec.id}`}>View Metrics</Link>
                   </td>
+                  {/* New Cell for Download PDF */}
+                  <td style={{ border: '1px solid black', padding: '0.5rem' }}>
+  {evalRec.filename ? (
+    <a 
+      href={`http://127.0.0.1:8000/api/pdf/download/${evalRec.filename}`} 
+      download
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ textDecoration: 'none', color: '#007bff' }}
+    >
+      Download
+    </a>
+  ) : (
+    <span style={{ color: '#aaa' }}>No PDF</span>
+  )}
+</td>
                 </tr>
               );
             })
