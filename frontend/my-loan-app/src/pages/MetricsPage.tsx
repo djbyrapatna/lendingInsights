@@ -97,13 +97,13 @@ const MetricsPage: React.FC = () => {
   );
 
   // Data for charts. We'll use the transactions array.
-  const balanceData = selectedEvaluation?.evaluation_result.metrics
-    ? selectedEvaluation.evaluation_result.metrics.balanceOverTime || [] // If you compute a balanceOverTime array
-    : (selectedEvaluation?.evaluation_result.transactions || []).map((tx, i) => ({
+  const balanceData = selectedEvaluation?.evaluation_result.transactions
+    ? selectedEvaluation.evaluation_result.transactions.map((tx, i) => ({
         time: tx.Date ? new Date(tx.Date).toLocaleDateString() : `T${i + 1}`,
-        balance: tx.Balance,
-      }));
-
+        balance: tx.Balance !== undefined ? Number(tx.Balance) : 0,
+      }))
+    : [];
+    console.log('Balance Data:', balanceData);
   // Expenses data: only transactions with Debit values.
   const expensesData = selectedEvaluation?.evaluation_result.transactions
     ? selectedEvaluation.evaluation_result.transactions
@@ -113,7 +113,7 @@ const MetricsPage: React.FC = () => {
           expense: tx.Debit,
         }))
     : [];
-
+    console.log('Expense Data:', expensesData);
   // Income data: only transactions with Credit values.
   const incomeData = selectedEvaluation?.evaluation_result.transactions
     ? selectedEvaluation.evaluation_result.transactions
@@ -136,6 +136,21 @@ const MetricsPage: React.FC = () => {
 
   // For the "All Metrics" table, assume metrics are stored under evaluation_result.metrics.
   const metricsObj: Metrics = selectedEvaluation.evaluation_result.metrics || defaultMetrics;
+  const orderedMetrics: { key: keyof Metrics; format: 'currency' | 'float'; displayName: string }[] = [
+    { key: 'starting_balance', format: 'currency', displayName: 'Starting Balance' },
+    { key: 'ending_balance', format: 'currency', displayName: 'Ending Balance' },
+    { key: 'max_balance', format: 'currency', displayName: 'Max Balance' },
+    { key: 'min_balance', format: 'currency', displayName: 'Min Balance' },
+    { key: 'total_income', format: 'currency', displayName: 'Total Income' },
+    { key: 'total_expenses', format: 'currency', displayName: 'Total Expenses' },
+    { key: 'net_cash_flow', format: 'currency', displayName: 'Net Cash Flow' },
+    { key: 'essential_spending', format: 'currency', displayName: 'Essential Spending' },
+    { key: 'discretionary_spending', format: 'currency', displayName: 'Discretionary Spending' },
+    { key: 'spending_std', format: 'float', displayName: 'Spending Std Dev' },
+    { key: 'spending_cv', format: 'float', displayName: 'Spending CV' },
+    { key: 'max_balance_ratio', format: 'float', displayName: 'Max Balance Ratio' },
+    { key: 'min_balance_ratio', format: 'float', displayName: 'Min Balance Ratio' },
+  ];
 
   return (
     <div style={{ padding: '2rem' }}>
@@ -159,38 +174,49 @@ const MetricsPage: React.FC = () => {
         <h3>Select Applicant:</h3>
         {filteredEvaluations.map((evalRec) => (
           <button 
-            key={evalRec.id} 
-            onClick={() => handleSelectEvaluation(evalRec.id)}
-            style={{
-              marginRight: '0.5rem',
-              backgroundColor: selectedEvaluation?.id === evalRec.id ? 'lightblue' : 'white'
-            }}
-          >
-            {evalRec.evaluation_result.applicantName}
-          </button>
+          key={evalRec.id} 
+          onClick={() => handleSelectEvaluation(evalRec.id)}
+          style={{
+            marginRight: '0.5rem',
+            marginBottom: '0.5rem',
+            padding: '0.5rem 1rem',
+            backgroundColor: selectedEvaluation?.id === evalRec.id ? '#4CAF50' : '#f0f0f0',
+            color: selectedEvaluation?.id === evalRec.id ? 'white' : 'black',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          {evalRec.evaluation_result.applicantName}
+        </button>
         ))}
       </div>
       
       {/* Display text with applicant name and loan eligibility score */}
       <div style={{ marginBottom: '2rem' }}>
-        <h2>
-          This is applicant {selectedEvaluation.evaluation_result.applicantName} with a loan eligibility score of{' '}
-          {Math.trunc(selectedEvaluation.evaluation_result.loan_eligibility_score)}
-        </h2>
-      </div>
+  <h2>
+    This is applicant <strong>{selectedEvaluation.evaluation_result.applicantName}</strong> with a loan eligibility score of{' '}
+    <strong>{Math.trunc(selectedEvaluation.evaluation_result.loan_eligibility_score)}</strong>
+  </h2>
+  <p><em>{computeLoanRecommendation(selectedEvaluation.evaluation_result.loan_eligibility_score)}</em></p>
+</div>
       
       {/* Chart 1: Balance Over Time */}
       <div style={{ marginBottom: '2rem' }}>
-        <h3>Balance Over Time</h3>
-        <LineChart width={500} height={300} data={balanceData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="time" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Line type="monotone" dataKey="balance" stroke="#8884d8" activeDot={{ r: 8 }} />
-        </LineChart>
-      </div>
+  <h3>Balance Over Time</h3>
+  {balanceData.length > 0 ? (
+    <LineChart width={600} height={300} data={balanceData}>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis dataKey="time" />
+      <YAxis />
+      <Tooltip />
+      <Legend />
+      <Line type="monotone" dataKey="balance" stroke="#8884d8" activeDot={{ r: 8 }} />
+    </LineChart>
+  ) : (
+    <div>No balance data available.</div>
+  )}
+</div>
       
       {/* Chart 2: Expenses Over Time */}
       <div style={{ marginBottom: '2rem' }}>
@@ -220,55 +246,74 @@ const MetricsPage: React.FC = () => {
       
       {/* Chart 4: Table of All Metrics */}
       <div style={{ marginBottom: '2rem' }}>
-        <h3>All Metrics</h3>
-        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-          <tbody>
-            {Object.entries(metricsObj).map(([key, value]) => (
-              <tr key={key}>
-                <td style={{ border: '1px solid black', padding: '0.5rem' }}>{key}</td>
-                <td style={{ border: '1px solid black', padding: '0.5rem' }}>{value.toString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+  <h3>All Metrics</h3>
+  <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+    <tbody>
+      {orderedMetrics.map(({ key, format, displayName }) => {
+        const value = metricsObj[key];
+        
+        // Skip rendering if the metric does not exist
+        if (value === undefined || value === null) return null;
+
+        // Format the value based on its type
+        const formattedValue = format === 'currency'
+          ? `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : Number(value).toFixed(2);
+
+        return (
+          <tr key={key}>
+            <td style={{ border: '1px solid black', padding: '0.5rem', fontWeight: 'bold' }}>
+              {displayName}
+            </td>
+            <td style={{ border: '1px solid black', padding: '0.5rem' }}>{formattedValue}</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
       
       {/* Chart 5: Table of All Expenses (Transactions) */}
       <div style={{ marginBottom: '2rem' }}>
-        <h3>Transactions</h3>
-        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-          <thead>
-            <tr>
-              <th style={{ border: '1px solid black', padding: '0.5rem' }}>Date</th>
-              <th style={{ border: '1px solid black', padding: '0.5rem' }}>Transaction Type</th>
-              <th style={{ border: '1px solid black', padding: '0.5rem' }}>Debit</th>
-              <th style={{ border: '1px solid black', padding: '0.5rem' }}>Credit</th>
-              <th style={{ border: '1px solid black', padding: '0.5rem' }}>Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {selectedEvaluation.evaluation_result.transactions &&
-            selectedEvaluation.evaluation_result.transactions.map((tx: any, index: number) => (
-              <tr key={index}>
-                <td style={{ border: '1px solid black', padding: '0.5rem' }}>
-                  {tx.Date ? new Date(tx.Date).toLocaleDateString() : `T${index + 1}`}
-                </td>
-                <td style={{ border: '1px solid black', padding: '0.5rem' }}>{tx.Category}</td>
-                <td style={{ border: '1px solid black', padding: '0.5rem' }}>
-                  {tx.Debit !== null ? tx.Debit : '-'}
-                </td>
-                <td style={{ border: '1px solid black', padding: '0.5rem' }}>
-                  {tx.Credit !== null ? tx.Credit : '-'}
-                </td>
-                <td style={{ border: '1px solid black', padding: '0.5rem' }}>
-                  {tx.Balance}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+  <h3>Transactions</h3>
+  <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+    <thead>
+      <tr>
+        <th style={{ border: '1px solid black', padding: '0.5rem' }}>Date</th>
+        <th style={{ border: '1px solid black', padding: '0.5rem' }}>Transaction Type</th>
+        <th style={{ border: '1px solid black', padding: '0.5rem' }}>Debit</th>
+        <th style={{ border: '1px solid black', padding: '0.5rem' }}>Credit</th>
+        <th style={{ border: '1px solid black', padding: '0.5rem' }}>Balance</th>
+      </tr>
+    </thead>
+    <tbody>
+      {selectedEvaluation.evaluation_result.transactions && selectedEvaluation.evaluation_result.transactions.length > 0 ? (
+        selectedEvaluation.evaluation_result.transactions.map((tx: Transaction, index: number) => (
+          <tr key={index}>
+            <td style={{ border: '1px solid black', padding: '0.5rem' }}>
+              {tx.Date ? new Date(tx.Date).toLocaleDateString() : `T${index + 1}`}
+            </td>
+            <td style={{ border: '1px solid black', padding: '0.5rem' }}>{tx.Category}</td>
+            <td style={{ border: '1px solid black', padding: '0.5rem' }}>
+              {tx.Debit !== null ? `$${tx.Debit.toFixed(2)}` : '-'}
+            </td>
+            <td style={{ border: '1px solid black', padding: '0.5rem' }}>
+              {tx.Credit !== null ? `$${tx.Credit.toFixed(2)}` : '-'}
+            </td>
+            <td style={{ border: '1px solid black', padding: '0.5rem' }}>{`$${tx.Balance.toFixed(2)}`}</td>
+          </tr>
+        ))
+      ) : (
+        <tr>
+          <td colSpan={5} style={{ textAlign: 'center', padding: '1rem' }}>
+            No transactions available.
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
+</div>
   );
 };
 
