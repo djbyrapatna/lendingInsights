@@ -1,10 +1,13 @@
 // backend/services/db.js
 const { Pool } = require('pg');
+require('dotenv').config(); // Load environment variables from .env
 
-// Use an environment variable or hardcode your connection string.
-// Replace 'user', 'password', 'localhost', and 'loan_evaluator_db' with your actual details.
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://dhruvajb:password@localhost:5432/loan_evaluator_db'
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    user: process.env.DB_USER || 'dhruvajb',
+    password: process.env.DB_PASSWORD || 'password',
+    database: process.env.DB_NAME || 'loan_evaluator_db',
 });
 
 module.exports = pool;

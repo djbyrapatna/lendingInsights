@@ -1,0 +1,52 @@
+
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=dhruvajb
+      - DB_PASSWORD=password
+      - DB_NAME=loan_evaluator_db
+    volumes:
+      - ./backend/pdfData:/app/pdfData
+      - ./data_processing:/data_processing
+    depends_on:
+      - data_processing
+      - db
+    
+
+  data_processing:
+    build: ./data_processing
+    volumes:
+      - ./data_processing/pdfData:/app/pdfData
+    # Uncomment if data processing exposes a port
+    # ports:
+    #   - "5000:5000"
+
+  frontend:
+    build: ./frontend/my-loan-app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:14-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: dhruvajb
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: loan_evaluator_db
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d/
+    ports:
+      - "5432:5432" # Optional for local access
+
+volumes:
+  db-data:

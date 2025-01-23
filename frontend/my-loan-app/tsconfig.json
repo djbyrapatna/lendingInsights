@@ -3,5 +3,12 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
-  ]
+    
+  ],
+  "compilerOptions": {
+    // ... other options ...
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+    // ... other options ...
+  },
 }
