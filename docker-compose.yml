@@ -14,19 +14,9 @@ services:
       - DB_NAME=loan_evaluator_db
     volumes:
       - ./backend/pdfData:/app/pdfData
-      - ./data_processing:/data_processing
+      - ./backend/data_processing:/app/data_processing
     depends_on:
-      - data_processing
       - db
-    
-
-  data_processing:
-    build: ./data_processing
-    volumes:
-      - ./data_processing/pdfData:/app/pdfData
-    # Uncomment if data processing exposes a port
-    # ports:
-    #   - "5000:5000"
 
   frontend:
     build: ./frontend/my-loan-app

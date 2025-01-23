@@ -10,7 +10,7 @@ function processPdf(filePath) {
   return new Promise((resolve, reject) => {
     // Construct the command to run your Python pipeline
     // Adjust the command if your pipeline requires additional arguments.
-    const pythonScriptPath = path.join(__dirname, '../../data_processing/pipeline.py');
+    const pythonScriptPath = '/app/data_processing/pipeline.py';
     const command = `python3 ${pythonScriptPath} "${filePath}"`;
     //const command = `python3 -m data_processing.pipeline.pipeline "${filePath}"`;
     exec(command, (error, stdout, stderr) => {

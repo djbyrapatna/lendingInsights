@@ -1,10 +1,14 @@
 # backend/Dockerfile
 
-# Use an official Node.js runtime as the base image
-FROM node:18-alpine
+# Use a Debian-based Node.js runtime as the base image
+FROM node:18-slim
 
-# Install Python and pip
-RUN apk add --no-cache python3 py3-pip
+# Install Python and pip along with necessary build tools
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -18,12 +22,12 @@ RUN npm install
 # Copy the rest of the backend code
 COPY . .
 
-# Install Python dependencies
-COPY data_processing/requirements.txt /data_processing/
-RUN pip3 install --no-cache-dir -r /data_processing/requirements.txt
+# Copy Python dependencies and install them
+COPY data_processing/requirements.txt /app/data_processing/
+RUN pip3 install --no-cache-dir -r /app/data_processing/requirements.txt --break-system-packages
 
-# Copy the data_processing scripts
-COPY data_processing/pipeline.py /data_processing/
+# Copy the Python pipeline script
+COPY data_processing/pipeline.py /app/data_processing/
 
 # Expose the backend port
 EXPOSE 8000
